@@ -26,7 +26,7 @@ jobs:
       # 3. 拉取上游并合并 (请将下面的 URL 替换为实际的上游地址)
       - name: Sync Upstream
         run: |
-          git remote add upstream https://github.com/sdgedghdg/HyperzoneLogin.git
+          git remote add upstream https://github.com/HyperZoneLogin/HyperzoneLogin.git
           git fetch upstream
           # 假设上游和你的主分支都是 master
           git checkout master
