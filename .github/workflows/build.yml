@@ -2,38 +2,34 @@ name: Weekly Upstream Sync & Gradle Build
 
 on:
   schedule:
-    # 每周一凌晨 0:00 (UTC) 运行一次
     - cron: '0 0 * * 1'
-  workflow_dispatch: # 允许你随时手动点击按钮触发构建
+  workflow_dispatch:
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 必须确保有写权限才能创建 Release
 
     steps:
-      # 1. 检出你的代码
       - name: Checkout Your Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 获取完整历史以便进行合并
+          fetch-depth: 0
 
-      # 2. 配置 Git 机器人信息
       - name: Config Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      # 3. 拉取上游并合并 (请将下面的 URL 替换为实际的上游地址)
       - name: Sync Upstream
         run: |
-          git remote add upstream https://github.com/HyperZoneLogin/HyperzoneLogin.git
+          git remote add upstream https://github.com/sdgedghdg/HyperzoneLogin.git
           git fetch upstream
-          # 假设上游和你的主分支都是 master
           git checkout master
-          git merge upstream/master --no-edit || echo "No new changes to merge"
+          git merge upstream/master --no-edit || echo "No changes"
           git push origin master
 
-      # 4. 设置 Java 环境 (Gradle 通常需要 JDK)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -41,28 +37,30 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # 5. 给 Gradle 运行权限并执行构建
       - name: Build with Gradle
         run: |
           chmod +x gradlew
-          ./gradlew build
+          # 使用 assemble 确保生成所有模块的 jar 包
+          ./gradlew clean assemble
 
-      # 6. 获取当前日期作为 Release 标签名
+      # 关键排错步骤：列出所有生成的 jar 文件的具体位置
+      - name: Locate Jar Files
+        run: |
+          echo "Finding all .jar files..."
+          find . -name "*.jar"
+
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
 
-      # 7. 发布到 GitHub Release
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "auto-build-${{ steps.date.outputs.date }}"
           name: "Weekly Auto Build - ${{ steps.date.outputs.date }}"
-          body: "此版本由 GitHub Actions 自动构建，同步自上游最新代码。"
-          draft: false
-          prerelease: false
-          # 这里的路径根据 Gradle 默认输出，通常在 build/libs/ 下
+          body: "此版本由 GitHub Actions 自动构建。同步自上游最新代码。"
+          # 使用通配符递归查找，无论 jar 包在哪一层 build/libs 都能抓到
           files: |
-            build/libs/*.jar
+            **/build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
